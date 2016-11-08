@@ -1,5 +1,20 @@
-*~
-*.swp
+# Numerous always-ignore extensions
+*.diff
+*.err
+*.orig
+*.log
+*.log.html
+*.rej
 *.swo
+*.swp
+*.vi
 *.hi
 *.o
+*~
+*.sass-cache
+*.directory
+
+# OS or Editor folders
+.stack-work
+*.sublime-project
+*.sublime-workspace

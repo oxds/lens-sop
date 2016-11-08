@@ -24,17 +24,20 @@ module Generics.SOP.Lens.Computed (
 import Prelude hiding (id, (.))
 import Control.Arrow
 import Control.Category
+#if defined(__GHC__) || defined(__GHCJS__) || defined(__HASTE__)
 import Control.Monad
-import Data.Functor.Identity
 import Data.Maybe (catMaybes)
+#endif
+
+import Data.Functor.Identity
 
 import Generics.SOP
 import Generics.SOP.Lens (GLens)
 import qualified Generics.SOP.Lens as GLens
 
-{-------------------------------------------------------------------------------
+{-
   Abstract lenses
--------------------------------------------------------------------------------}
+-}
 
 -- | An abstract lens qualifies existentially over the target type of the lens
 --
@@ -54,14 +57,14 @@ afterGLens :: (ArrowApply r, ArrowApply w)
            -> AbstractLens r w c b   -- ^ @b -> x@
 afterGLens (AbstractLens l) l' = AbstractLens (l . l')
 
-{-------------------------------------------------------------------------------
+{-
   Getters and setters (mostly just for convenience)
--------------------------------------------------------------------------------}
+-}
 
 -- | Getter for computed lenses
 --
 -- > get l == runIdentity . getM l . Identity
-get :: Category r => AbstractLens r w c a -> (forall x. c x => r a x -> b) -> b
+get :: AbstractLens r w c a -> (forall x. c x => r a x -> b) -> b
 get l f = runIdentity $ getM l (Identity . f)
 
 -- | Setter for computed lenses
@@ -75,8 +78,7 @@ modify :: Arrow w => AbstractLens r w c a -> (forall x. c x => w x x) -> w a a
 modify l f = runIdentity $ modifyM l (Identity f)
 
 -- | Getter with possibility for "compile time" failure
-getM :: (Monad m, Category r)
-     => AbstractLens r w c a
+getM :: AbstractLens r w c a
      -> (forall x. c x => r a x -> m b)
      -> m b
 getM (AbstractLens l) k = k (GLens.get l)
@@ -93,9 +95,9 @@ modifyM :: (Monad m, Arrow w)
 modifyM (AbstractLens l) mf =
   mf >>= \f -> return $ GLens.modify l . arr (\a -> (f, a))
 
-{-------------------------------------------------------------------------------
+{-
   Paths
--------------------------------------------------------------------------------}
+-}
 
 -- | A path is a series of field names. For instance, given
 --
@@ -111,9 +113,9 @@ modifyM (AbstractLens l) mf =
 -- > ["c", "b"]
 type Path = [String]
 
-{-------------------------------------------------------------------------------
+{-
   Top-level generic function
--------------------------------------------------------------------------------}
+-}
 
 -- | Compute a lens for a given type and path
 --
@@ -124,6 +126,8 @@ type Path = [String]
 -- However, the lenses returned by the generic computation are pure and total
 -- (as is evident from the type of glens).
 class CLens r w c a where
+  lens :: LensOptions -> Path -> Either String (AbstractLens r w c a)
+#if defined(__GHC__) || defined(__GHCJS__) || defined(__HASTE__)
   default lens :: ( Generic a
                   , HasDatatypeInfo a
                   , ArrowApply r
@@ -134,16 +138,15 @@ class CLens r w c a where
                   )
                => LensOptions -> Path -> Either String (AbstractLens r w c a)
 
-  lens :: LensOptions -> Path -> Either String (AbstractLens r w c a)
   lens = glens
-
-{-------------------------------------------------------------------------------
+#endif
+{-
   Instances
 
   We don't provide any instances here, because applications might want to
   implement special kinds of semantics for certain paths for types that we
   normally cannot "look into".
--------------------------------------------------------------------------------}
+-}
 
 -- | A lens for abstract types (supports empty paths only)
 --
@@ -156,9 +159,9 @@ emptyPathOnly :: (ArrowApply r, ArrowApply w, c a)
 emptyPathOnly _ [] = Right $ abstractId
 emptyPathOnly _ _  = Left "Trying to look inside abstract type"
 
-{-------------------------------------------------------------------------------
+{-
   Lens options
--------------------------------------------------------------------------------}
+-}
 
 data LensOptions = LensOptions {
     -- | Match a selector against a path component
@@ -171,9 +174,10 @@ defaultLensOptions = LensOptions {
     lensOptionsMatch = const (==)
   }
 
-{-------------------------------------------------------------------------------
+{-
   The actual generic function
--------------------------------------------------------------------------------}
+-}
+#if defined(__GHC__) || defined(__GHCJS__) || defined(__HASTE__)
 
 glens :: forall r w a c xs.
          ( ArrowApply r
@@ -236,3 +240,4 @@ glens'' opts ps d p (Record _ fs) =
 
     pl :: Proxy (CLens r w c)
     pl = Proxy
+#endif
